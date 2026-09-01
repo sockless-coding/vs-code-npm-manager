@@ -1,0 +1,24 @@
+{
+  "compilerOptions": {
+    "module": "CommonJS",
+    "moduleResolution": "Node",
+    "target": "ES2022",
+    "lib": ["ES2022"],
+    "sourceMap": true,
+    "rootDir": ".",
+    "outDir": "out-tests",
+    "strict": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true
+  },
+  "include": [
+    "src/npm/versionRange.ts",
+    "src/npm/npmrc.ts",
+    "src/projects/jsonEdit.ts",
+    "src/projects/lockGraph.ts",
+    "src/webview/packageAge.ts",
+    "test/unit/**/*.ts"
+  ],
+  "exclude": ["node_modules", "dist"]
+}

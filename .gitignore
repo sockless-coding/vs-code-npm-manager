@@ -1,0 +1,7 @@
+node_modules/
+dist/
+out-tests/
+*.vsix
+media/codicon.css
+media/codicon.ttf
+sample-workspace/node_modules/

@@ -1,0 +1,43 @@
+<svg width="128" height="128" viewBox="0 0 128 128" xmlns="http://www.w3.org/2000/svg">
+  <!-- Source art for media/icon.png. Dark / npm-red theme.
+       Re-render: scripts/render-icon.py rasterizes this composition at 512x512 and downscales to 128. -->
+  <defs>
+    <radialGradient id="bg" cx="38%" cy="30%" r="85%">
+      <stop offset="0%" stop-color="#401c1c"/>
+      <stop offset="55%" stop-color="#2b1212"/>
+      <stop offset="100%" stop-color="#160909"/>
+    </radialGradient>
+    <linearGradient id="top" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#ff7a6e"/>
+      <stop offset="100%" stop-color="#d63a33"/>
+    </linearGradient>
+    <linearGradient id="left" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#b52d28"/>
+      <stop offset="100%" stop-color="#7a1816"/>
+    </linearGradient>
+    <linearGradient id="right" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#8f1f1c"/>
+      <stop offset="100%" stop-color="#59100e"/>
+    </linearGradient>
+  </defs>
+
+  <rect x="0" y="0" width="128" height="128" rx="20" fill="url(#bg)"/>
+  <rect x="1.5" y="1.5" width="125" height="125" rx="18.5" fill="none" stroke="#e85d53" stroke-opacity="0.25" stroke-width="1.5"/>
+
+  <g transform="translate(64,65)">
+    <ellipse cx="0" cy="34" rx="42" ry="9" fill="#000" opacity="0.38"/>
+
+    <path d="M0,-40 L40,-18 L0,4 L-40,-18 Z" fill="url(#top)"/>
+    <path d="M-40,-18 L0,4 L0,44 L-40,22 Z" fill="url(#left)"/>
+    <path d="M40,-18 L0,4 L0,44 L40,22 Z" fill="url(#right)"/>
+
+    <path d="M0,-40 L40,-18 L0,4 L-40,-18 Z" fill="none" stroke="#ffd8d0" stroke-opacity="0.55" stroke-width="1.2"/>
+    <path d="M-40,-18 L0,4 L40,-18" fill="none" stroke="#400a09" stroke-opacity="0.45" stroke-width="1.1"/>
+
+    <!-- double-chevron mark, echoes a CLI prompt -->
+    <g stroke="#ffffff" stroke-opacity="0.92" stroke-width="4.2" fill="none" stroke-linecap="round" stroke-linejoin="round" transform="translate(0,-25)">
+      <path d="M-13,-6 L-4,0 L-13,6"/>
+      <path d="M2,-6 L11,0 L2,6"/>
+    </g>
+  </g>
+</svg>
