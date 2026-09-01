@@ -8,6 +8,8 @@ This is the npm/Node.js sibling of [Sockless NuGet Package
 Manager](https://github.com/sockless-coding/vs-code-nuget-manager), built to
 the same look and feel.
 
+![Browse: searching the npm registry, with a version and dependency-type picker for the selected package](docs/screenshots/browse.png)
+
 ## Features
 
 - **Browse** — search the npm registry (and any private/scoped registries
@@ -30,7 +32,12 @@ the same look and feel.
 - **Pin / Unpin** a dependency to an exact version (held back from *Update
   All* until you unpin it) — vulnerability checks still apply either way.
 - **Vulnerability scanning** via `npm audit`, surfaced right on the package
-  row and in the detail pane, with a link to each advisory.
+  row and in the detail pane, with each advisory's title, the version range it
+  applies to, and a link to it. `npm audit` often attaches the real advisory
+  only to a package several hops down your dependency tree; the manager
+  resolves that chain so a direct dependency shows its *full* exposure — not
+  just the empty-looking entry `npm audit` gave it directly — without you
+  having to drill into every transitive package individually.
 - **Supply-chain guardrail** — freshly published versions younger than a
   configurable minimum age are flagged and held back from the default
   version choice and from *Update All*.
@@ -41,6 +48,8 @@ the same look and feel.
   workspace root package.json scopes install/update actions to every member
   package.
 
+![Installed: a vulnerable transitive dependency resolved and listed with its full advisory chain](docs/screenshots/installed.png)
+
 ## Getting started
 
 Open a folder containing a `package.json`, then either:
@@ -50,6 +59,8 @@ Open a folder containing a `package.json`, then either:
   open, or
 - Right-click a `package.json` in the Explorer and choose **Manage npm
   Packages...**.
+
+![Updates: every outdated package with its version history and Update All](docs/screenshots/updates.png)
 
 ## Requirements
 

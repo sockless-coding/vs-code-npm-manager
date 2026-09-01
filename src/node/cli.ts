@@ -9,6 +9,7 @@ import * as fs from "fs";
 import * as path from "path";
 import * as vscode from "vscode";
 import { DependencyType } from "../panel/messaging";
+import type { NpmAuditOutput } from "../projects/advisories";
 
 export type PackageManagerName = "npm" | "yarn" | "pnpm";
 
@@ -157,34 +158,38 @@ export class PackageManagerCli {
   /** `npm list --all --json`; `undefined` on any non-JSON failure. Only meaningful for npm. */
   async listPackages(projectDir: string): Promise<NpmListOutput | undefined> {
     const r = await this.run("npm", ["ls", "--all", "--json"], projectDir, true);
-    if (!r.stdout.trim().startsWith("{")) return undefined;
-    try {
-      return JSON.parse(r.stdout) as NpmListOutput;
-    } catch {
-      return undefined;
-    }
+    return parseJsonLenient<NpmListOutput>(r.stdout);
   }
 
   /** `npm outdated --json`. Exit code is 1 when outdated packages exist; JSON is still on stdout. */
   async outdated(projectDir: string): Promise<Record<string, NpmOutdatedEntry> | undefined> {
     const r = await this.run("npm", ["outdated", "--json"], projectDir, true);
     if (!r.stdout.trim()) return {};
-    try {
-      return JSON.parse(r.stdout) as Record<string, NpmOutdatedEntry>;
-    } catch {
-      return undefined;
-    }
+    return parseJsonLenient<Record<string, NpmOutdatedEntry>>(r.stdout);
   }
 
   /** `npm audit --json`. */
   async audit(projectDir: string): Promise<NpmAuditOutput | undefined> {
     const r = await this.run("npm", ["audit", "--json"], projectDir, true);
-    if (!r.stdout.trim().startsWith("{")) return undefined;
-    try {
-      return JSON.parse(r.stdout) as NpmAuditOutput;
-    } catch {
-      return undefined;
-    }
+    return parseJsonLenient<NpmAuditOutput>(r.stdout);
+  }
+}
+
+/**
+ * `npm --json` output is supposed to be pure JSON on stdout, but some npm
+ * versions/configs (proxies rewriting banners, `npm warn` lines redirected to
+ * stdout instead of stderr) can prepend or trail non-JSON text. Parsing from the
+ * first `{` to the last `}` — instead of requiring the whole stream to be clean —
+ * makes the audit/outdated/list reconciliation noticeably less flaky.
+ */
+function parseJsonLenient<T>(stdout: string): T | undefined {
+  const start = stdout.indexOf("{");
+  const end = stdout.lastIndexOf("}");
+  if (start < 0 || end < start) return undefined;
+  try {
+    return JSON.parse(stdout.slice(start, end + 1)) as T;
+  } catch {
+    return undefined;
   }
 }
 
@@ -205,15 +210,4 @@ export interface NpmOutdatedEntry {
   wanted: string;
   latest: string;
   dependent?: string;
-}
-
-export interface NpmAuditAdvisory {
-  severity: "info" | "low" | "moderate" | "high" | "critical";
-  via: (string | { title?: string; url?: string; severity?: string })[];
-  range?: string;
-  nodes?: string[];
-}
-
-export interface NpmAuditOutput {
-  vulnerabilities?: Record<string, NpmAuditAdvisory>;
 }

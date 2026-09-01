@@ -11,6 +11,21 @@ export type DependencyType = "dependencies" | "devDependencies" | "peerDependenc
 /** How a chosen version is written to package.json: `^1.2.3`, `~1.2.3`, `1.2.3`, or `>=1.2.3`. */
 export type VersionPrefix = "exact" | "caret" | "tilde" | "gte";
 
+/**
+ * One resolved `npm audit` advisory. `range`/`title` come from the advisory that
+ * actually carries the CVE — which, for a package that is only vulnerable because
+ * of a dependency several hops down its own tree, may not be the package this
+ * advisory is attached to; see `collectAdvisories` in `projects/installed.ts`.
+ */
+export interface VulnerabilityInfo {
+  /** 0 Low, 1 Moderate, 2 High, 3 Critical. */
+  severity: number;
+  advisoryUrl: string;
+  title?: string;
+  /** The vulnerable version range this specific advisory applies to. */
+  range?: string;
+}
+
 export interface PackageSummary {
   id: string;
   version: string;
@@ -55,7 +70,7 @@ export interface PackageDetail {
   tags: string[];
   dependencyGroups: PackageDependencyGroup[];
   deprecation?: { reasons: string[]; message?: string; alternatePackageId?: string };
-  vulnerabilities?: { severity: number; advisoryUrl: string }[];
+  vulnerabilities?: VulnerabilityInfo[];
   source: string;
 }
 
@@ -94,8 +109,13 @@ export interface InstalledPackage {
   hasVulnerability?: boolean;
   /** Package icon — resolved best-effort; usually absent for npm packages. */
   iconUrl?: string;
-  /** Known advisories affecting the installed version (direct or transitive). */
-  vulnerabilities?: { severity: number; advisoryUrl: string }[];
+  /**
+   * Known advisories affecting the installed version — including ones that only
+   * apply because of a package deeper in this one's own dependency tree, resolved
+   * recursively so the full exposure shows up here without drilling into every
+   * transitive package individually. Sorted worst-first.
+   */
+  vulnerabilities?: VulnerabilityInfo[];
   /** Highest advisory severity (0..3), or -1 when there are none. */
   maxVulnerabilitySeverity?: number;
   /** Project paths where the resolved version is flagged vulnerable. */

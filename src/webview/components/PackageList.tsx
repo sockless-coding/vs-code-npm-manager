@@ -19,6 +19,8 @@ export interface ListRow {
   badges: RowBadge[];
   /** Highest advisory severity (0..3) when vulnerable. */
   severity?: number;
+  /** Tooltip text summarizing the known advisories, worst first. */
+  vulnerabilitySummary?: string;
   /** Direct packages that pull this one in (transitive rows in flat view). */
   via?: string[];
   /* tree layout */
@@ -71,10 +73,23 @@ export function installedToRow(p: InstalledPackage): ListRow {
     rightLabel: right,
     badges,
     severity: p.maxVulnerabilitySeverity,
+    vulnerabilitySummary: vulnerabilitySummary(p),
     via: p.transitive ? p.requiredBy : undefined,
     depth: 0,
     hasChildren: false
   };
+}
+
+const SEVERITY_TITLES = ["low", "moderate", "high", "critical"];
+
+/** Tooltip text for a vulnerable row: advisory count plus the worst one's title. */
+function vulnerabilitySummary(p: InstalledPackage): string | undefined {
+  const list = p.vulnerabilities;
+  if (!list || list.length === 0) return undefined;
+  const worst = list[0]; // applyAdvisories keeps this sorted worst-first.
+  const label = SEVERITY_TITLES[worst.severity] ?? "known";
+  const count = list.length > 1 ? `${list.length} advisories, worst: ` : "";
+  return `${count}${label} severity${worst.title ? " — " + worst.title : ""}`;
 }
 
 /**
@@ -117,8 +132,6 @@ export function buildInstalledTree(packages: InstalledPackage[]): ListRow[] {
   }
   return rows;
 }
-
-const SEVERITY_TITLES = ["low", "moderate", "high", "critical"];
 
 interface Props {
   rows: ListRow[];
@@ -220,14 +233,7 @@ export function PackageList({
                 <span className="codicon codicon-verified-filled verified" title="Verified owner" />
               )}
               {row.badges.includes("vulnerable") && (
-                <span
-                  className="badge badge-error"
-                  title={
-                    row.severity != null && row.severity >= 0
-                      ? `${SEVERITY_TITLES[row.severity] ?? "known"} severity advisory`
-                      : "known vulnerability"
-                  }
-                >
+                <span className="badge badge-error" title={row.vulnerabilitySummary ?? "known vulnerability"}>
                   vulnerable
                 </span>
               )}

@@ -17,6 +17,7 @@
     "src/npm/npmrc.ts",
     "src/projects/jsonEdit.ts",
     "src/projects/lockGraph.ts",
+    "src/projects/advisories.ts",
     "src/webview/packageAge.ts",
     "test/unit/**/*.ts"
   ],

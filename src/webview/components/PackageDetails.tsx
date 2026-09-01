@@ -5,7 +5,8 @@ import type {
   InstalledPackage,
   PackageDetail,
   ProjectInfo,
-  VersionPrefix
+  VersionPrefix,
+  VulnerabilityInfo
 } from "../../panel/messaging";
 import { formatDate, formatDownloads, severityLabel } from "../format";
 import { ageInDays, formatRelativeAge, pickDefaultVersion } from "../packageAge";
@@ -204,40 +205,18 @@ export function PackageDetails({
       {detail.vulnerabilities && detail.vulnerabilities.length > 0 && (
         <div className="callout callout-error">
           <strong>Known vulnerabilities:</strong>
-          <ul>
-            {detail.vulnerabilities.map((v, i) => (
-              <li key={i}>
-                {severityLabel(v.severity)} —{" "}
-                <a href="#" onClick={(e) => (e.preventDefault(), request({ kind: "openExternal", url: v.advisoryUrl }))}>
-                  advisory
-                </a>
-              </li>
-            ))}
-          </ul>
+          <ul className="advisories">{detail.vulnerabilities.map((v, i) => <AdvisoryItem key={i} v={v} />)}</ul>
         </div>
       )}
       {installedForPackage?.vulnerabilities && installedForPackage.vulnerabilities.length > 0 && (
         <div className="callout callout-error">
           <strong>
-            The installed{installedForPackage.transitive ? " (transitive)" : ""} version has advisories:
+            The installed{installedForPackage.transitive ? " (transitive)" : ""} version has{" "}
+            {installedForPackage.vulnerabilities.length === 1 ? "an advisory" : "advisories"}, including any
+            from its own dependencies:
           </strong>
-          <ul>
-            {installedForPackage.vulnerabilities.map((v, i) => (
-              <li key={i}>
-                {severityLabel(v.severity)}
-                {v.advisoryUrl && (
-                  <>
-                    {" — "}
-                    <a
-                      href="#"
-                      onClick={(e) => (e.preventDefault(), request({ kind: "openExternal", url: v.advisoryUrl }))}
-                    >
-                      advisory
-                    </a>
-                  </>
-                )}
-              </li>
-            ))}
+          <ul className="advisories">
+            {installedForPackage.vulnerabilities.map((v, i) => <AdvisoryItem key={i} v={v} />)}
           </ul>
         </div>
       )}
@@ -463,5 +442,25 @@ export function PackageDetails({
         return dl ? <div className="muted small">{formatDownloads(dl)} downloads of this version</div> : null;
       })()}
     </div>
+  );
+}
+
+/** One resolved advisory: severity, title, the range it applies to, and a link when known. */
+function AdvisoryItem({ v }: { v: VulnerabilityInfo }) {
+  return (
+    <li>
+      <span className={"severity-dot severity-" + severityLabel(v.severity).toLowerCase()} aria-hidden="true" />
+      <strong>{severityLabel(v.severity)}</strong>
+      {v.title ? ` ${v.title}` : ""}
+      {v.range && <span className="muted"> — affects {v.range}</span>}
+      {v.advisoryUrl && (
+        <>
+          {" "}
+          <a href="#" onClick={(e) => (e.preventDefault(), request({ kind: "openExternal", url: v.advisoryUrl }))}>
+            advisory
+          </a>
+        </>
+      )}
+    </li>
   );
 }

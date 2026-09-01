@@ -12,8 +12,11 @@
  *     deprecation flag for each direct package (registry queries, concurrency
  *     limited), plus `npm audit --json` for known advisories — npm's lockfile
  *     carries no offline advisory data of its own, unlike a NuGet restore.
- *     Progress and partial results are streamed to the webview through the
- *     {@link InstalledNotifier}.
+ *     Advisories are resolved through the full `via` chain (see
+ *     {@link collectAdvisories}) so a package only exposed through a
+ *     sub-dependency several hops down still shows its real advisories, not an
+ *     empty list. Progress and partial results are streamed to the webview
+ *     through the {@link InstalledNotifier}.
  *
  * Setting `npmManager.usePackageManagerForEnumeration` additionally reconciles the
  * snapshot with `npm outdated --json` during enrichment, for npm projects that
@@ -22,18 +25,18 @@
 
 import * as path from "path";
 import * as vscode from "vscode";
-import { InstalledPackage } from "../panel/messaging";
-import { PackageManagerCli, NpmAuditAdvisory } from "../node/cli";
+import { InstalledPackage, VulnerabilityInfo } from "../panel/messaging";
+import { PackageManagerCli } from "../node/cli";
 import { ProjectRegistry, WorkspaceProject } from "./discovery";
 import { RegistryRegistry } from "../npm/registries";
 import { MetadataService } from "../npm/metadata";
 import { maxVersion } from "../npm/semverUtil";
 import { isExactVersionPin, stripVersionPin } from "../npm/versionRange";
 import { DependencyGraph, findLockfileRoot, mergeGraphs, readDependencyGraph } from "./lockGraph";
+import { collectAdvisories } from "./advisories";
 import { mapWithConcurrency } from "../util";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
-const SEVERITY_WORDS: Record<string, number> = { info: 0, low: 0, moderate: 1, high: 2, critical: 3 };
 
 /** How the extension host is told about streamed enrichment progress and results. */
 export interface InstalledNotifier {
@@ -253,10 +256,18 @@ export class InstalledService {
       if (token !== this.runToken) return;
       const result = await this.cli.audit(dir);
       if (!result?.vulnerabilities) continue;
-      for (const [name, advisory] of Object.entries(result.vulnerabilities)) {
+      for (const name of Object.keys(result.vulnerabilities)) {
         const entry = byId.get(name.toLowerCase());
         if (!entry) continue;
-        this.applyAdvisory(entry, advisory);
+        // Resolve the FULL advisory chain, not just this package's own `via` —
+        // `npm audit` often only attaches the real advisory object to a package
+        // several hops down (e.g. a direct `request` dependency is flagged only
+        // through a bare package-name reference to its bundled `form-data`),
+        // so a shallow read leaves the direct package's own list looking empty
+        // or vague until you drill into the transitive package that "really" has it.
+        const advisories = collectAdvisories(name, result.vulnerabilities);
+        if (advisories.length === 0) continue;
+        this.applyAdvisories(entry, advisories);
         for (const p of projectPaths) this.markVulnerableProject(entry, p);
       }
     }
@@ -325,18 +336,14 @@ export class InstalledService {
     if (!entry.projects.includes(projectPath)) entry.projects.push(projectPath);
   }
 
-  private applyAdvisory(entry: InstalledPackage, advisory: NpmAuditAdvisory): void {
-    const severity = SEVERITY_WORDS[advisory.severity] ?? 0;
-    const urls = advisory.via
-      .filter((v): v is { title?: string; url?: string } => typeof v === "object")
-      .map((v) => v.url)
-      .filter((u): u is string => !!u);
+  private applyAdvisories(entry: InstalledPackage, advisories: VulnerabilityInfo[]): void {
     const list = entry.vulnerabilities ?? [];
-    for (const url of urls.length > 0 ? urls : [""]) {
-      if (!list.some((x) => x.advisoryUrl === url && x.severity === severity)) {
-        list.push({ severity, advisoryUrl: url });
+    for (const a of advisories) {
+      if (!list.some((x) => x.advisoryUrl === a.advisoryUrl && x.title === a.title)) {
+        list.push(a);
       }
     }
+    list.sort((a, b) => b.severity - a.severity);
     entry.vulnerabilities = list;
     entry.hasVulnerability = true;
     entry.maxVulnerabilitySeverity = list.reduce((m, a) => Math.max(m, a.severity), -1);

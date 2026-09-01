@@ -1,0 +1,17 @@
+.vscode/**
+.github/**
+docs/**
+media/icon.svg
+src/**
+test/**
+sample-workspace/**
+out-tests/**
+node_modules/**
+esbuild.mjs
+tsconfig*.json
+.eslintrc.json
+.gitignore
+**/*.ts
+!dist/**
+dist/**/*.map
+*.vsix

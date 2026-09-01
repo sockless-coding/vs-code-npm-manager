@@ -425,6 +425,37 @@ button:disabled {
   border-color: var(--vscode-editorError-foreground, #f14c4c);
 }
 
+.advisories {
+  margin: 4px 0 0;
+  padding-left: 18px;
+}
+
+.advisories li {
+  margin: 3px 0;
+}
+
+.severity-dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  margin-right: 5px;
+  vertical-align: 1px;
+}
+
+.severity-dot.severity-low {
+  background: var(--vscode-charts-yellow, #cca700);
+}
+
+.severity-dot.severity-moderate {
+  background: var(--vscode-charts-orange, #d18616);
+}
+
+.severity-dot.severity-high,
+.severity-dot.severity-critical {
+  background: var(--vscode-editorError-foreground, #f14c4c);
+}
+
 .pkg-detail-controls {
   display: flex;
   flex-wrap: wrap;
