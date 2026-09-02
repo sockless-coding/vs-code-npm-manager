@@ -18,6 +18,7 @@ import {
   stripVersionPin
 } from "@npm-manager/shared";
 import { request } from "../hostBridge";
+import { Readme } from "./Readme";
 
 interface Props {
   detail: PackageDetail;
@@ -433,7 +434,7 @@ export function PackageDetails({
       {detail.readmeMarkdown && (
         <details className="readme">
           <summary>Readme</summary>
-          <pre>{detail.readmeMarkdown}</pre>
+          <Readme markdown={detail.readmeMarkdown} />
         </details>
       )}
 

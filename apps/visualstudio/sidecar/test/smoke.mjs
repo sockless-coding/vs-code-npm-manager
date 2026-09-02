@@ -62,7 +62,14 @@ try {
   assert.ok(Array.isArray(state.projects) && state.projects.length > 0, "discovered at least one project");
   assert.ok(Array.isArray(state.registries) && state.registries.length > 0, "has at least one registry");
 
-  console.log(`OK — ${state.projects.length} project(s), ${state.registries.length} registr(y/ies) discovered`);
+  // A repeat `configure` (manager reopened from a different scope) must NOT echo
+  // `ready` again — that echo is what made the C# side spin in a refresh loop.
+  inbox.length = 0;
+  send({ t: "configure", roots: [sampleWorkspace], config: {} });
+  await new Promise((r) => setTimeout(r, 800));
+  assert.ok(!inbox.some((m) => m.t === "ready"), "a second configure must not re-send 'ready'");
+
+  console.log(`OK — ${state.projects.length} project(s), ${state.registries.length} registr(y/ies) discovered; no ready-echo loop`);
   child.stdin.end();
   await once(child, "exit");
   process.exit(0);

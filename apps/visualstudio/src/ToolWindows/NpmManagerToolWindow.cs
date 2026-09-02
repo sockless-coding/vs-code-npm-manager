@@ -26,7 +26,7 @@ namespace SocklessNpm.VisualStudio.ToolWindows
         protected override void Initialize()
         {
             base.Initialize();
-            _control.Attach((SocklessNpmPackage)Package);
+            _control.Attach(SocklessNpmPackage.Instance);
         }
 
         /// <summary>Point the manager at a project / solution scope (called by the context-menu commands).</summary>

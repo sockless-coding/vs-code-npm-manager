@@ -6,11 +6,14 @@ using System.Reflection;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
+using Microsoft.VisualStudio.PlatformUI;
 using Microsoft.VisualStudio.Shell;
 using Microsoft.VisualStudio.Shell.Interop;
 using Microsoft.VisualStudio.Settings;
 using Microsoft.VisualStudio.Shell.Settings;
+using Microsoft.Web.WebView2.Core;
 using Microsoft.Web.WebView2.Wpf;
+using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using SocklessNpm.VisualStudio.Sidecar;
 
@@ -25,93 +28,218 @@ namespace SocklessNpm.VisualStudio.ToolWindows
         private const string VirtualHost = "npm.manager";
         private const string SettingsCollection = "SocklessNpmPackageManager";
 
+        private readonly Grid _root = new Grid();
         private readonly WebView2 _webView = new WebView2();
+        private readonly TextBox _status = new TextBox
+        {
+            Margin = new Thickness(16),
+            TextWrapping = TextWrapping.Wrap,
+            IsReadOnly = true,
+            BorderThickness = new Thickness(0),
+            Background = System.Windows.Media.Brushes.Transparent,
+            VerticalAlignment = VerticalAlignment.Top
+        };
         private SocklessNpmPackage _package;
         private SidecarProcess _sidecar;
         private bool _ready;
         private NpmScope _pendingScope;
-        private bool _initialized;
+        private bool _initStarted;
+        private bool _themeSubscribed;
 
         public NpmManagerToolWindowControl()
         {
-            Content = _webView;
+            _status.Text = "Starting the npm Package Manager…";
+            _root.Children.Add(_webView);
+            _root.Children.Add(_status);
+            Content = _root;
+            Loaded += (_, __) => _ = InitializeAsync();
         }
 
         public void Attach(SocklessNpmPackage package)
         {
             _package = package;
-            _ = InitializeAsync();
+            if (IsLoaded) _ = InitializeAsync();
         }
 
         public void ApplyScope(NpmScope scope)
         {
             _pendingScope = scope;
-            PushScopeIfReady();
+            // If the engine is already running (manager reopened from a different
+            // project/solution), re-configure it with the new roots. The sidecar
+            // handles a repeat `configure` without echoing `ready`, so this does
+            // not loop.
+            if (_ready && _sidecar != null)
+            {
+                _sidecar.Configure(scope.Roots.ToArray(), CurrentConfig());
+                SendScope();
+            }
         }
+
+        private void ShowStatus(string text)
+        {
+            _status.Text = text;
+            _status.Visibility = Visibility.Visible;
+            _webView.Visibility = Visibility.Collapsed;
+        }
+
+        private JObject CurrentConfig() => _package?.Options?.ToConfig() ?? new JObject();
 
         private async Task InitializeAsync()
         {
-            if (_initialized) return;
-            _initialized = true;
+            if (_initStarted) return;
+            _initStarted = true;
 
-            var extensionDir = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location) ?? "";
-            var sidecarJs = Path.Combine(extensionDir, "Sidecar", "sidecar.js");
-            var webviewDir = Path.Combine(extensionDir, "webview");
-            var nodeExe = ResolveNode();
-
-            if (nodeExe == null || !File.Exists(sidecarJs) || !File.Exists(Path.Combine(webviewDir, "index.html")))
+            try
             {
-                _webView.Visibility = Visibility.Collapsed;
-                Content = new TextBlock
+                await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();
+
+                var extensionDir = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location) ?? "";
+                var sidecarJs = Path.Combine(extensionDir, "Sidecar", "sidecar.js");
+                var webviewDir = Path.Combine(extensionDir, "webview");
+                var indexHtml = Path.Combine(webviewDir, "index.html");
+                var nodeExe = ResolveNode();
+
+                if (nodeExe == null)
                 {
-                    Margin = new Thickness(16),
-                    TextWrapping = TextWrapping.Wrap,
-                    Text = nodeExe == null
-                        ? "Node.js was not found on PATH. Install Node.js to use the npm Package Manager."
-                        : "The npm Package Manager assets are missing from the extension. Rebuild the VSIX."
+                    ShowStatus(
+                        "Node.js was not found on PATH.\n\n" +
+                        "Install Node.js (or add it to PATH) and reopen the npm Package Manager. " +
+                        "Visual Studio must be restarted after changing PATH.");
+                    return;
+                }
+                if (!File.Exists(sidecarJs) || !File.Exists(indexHtml))
+                {
+                    ShowStatus(
+                        "The npm Package Manager assets are missing from the extension.\n\n" +
+                        "Expected:\n  " + sidecarJs + "\n  " + indexHtml + "\n\n" +
+                        "Run \"npm run build:vs\" at the repo root and rebuild the VSIX.");
+                    return;
+                }
+
+                // WebView2's default user-data folder is the host process directory
+                // (the read-only Visual Studio install), which makes CoreWebView2
+                // init fail and the window render blank. Use a writable location.
+                var userDataFolder = Path.Combine(
+                    Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+                    "SocklessNpmPackageManager", "WebView2");
+                Directory.CreateDirectory(userDataFolder);
+
+                var env = await CoreWebView2Environment.CreateAsync(null, userDataFolder);
+                await _webView.EnsureCoreWebView2Async(env);
+
+                _webView.CoreWebView2.SetVirtualHostNameToFolderMapping(
+                    VirtualHost, webviewDir, CoreWebView2HostResourceAccessKind.Allow);
+
+                // Match the Visual Studio theme (light/dark) before the first paint,
+                // and re-assert it once the page has loaded in case the
+                // document-created hook raced the stylesheet.
+                await _webView.CoreWebView2.AddScriptToExecuteOnDocumentCreatedAsync(BuildThemeInitScript());
+                ApplyPreferredColorScheme();
+                _webView.CoreWebView2.NavigationCompleted += (_, __) => ReapplyTheme();
+                if (!_themeSubscribed)
+                {
+                    VSColorTheme.ThemeChanged += OnVsThemeChanged;
+                    _themeSubscribed = true;
+                }
+
+                _webView.CoreWebView2.WebMessageReceived += (_, e) =>
+                {
+                    try { _sidecar?.PostFromWebView(JToken.Parse(e.WebMessageAsJson)); }
+                    catch (Exception ex) { Debug.WriteLine("[npm] bad web message: " + ex); }
                 };
-                return;
+
+                _sidecar = new SidecarProcess(nodeExe, sidecarJs, OnSidecarCallAsync, OnSidecarWebMessage);
+                _sidecar.Ready += OnSidecarReady;
+                _sidecar.Exited += OnSidecarExited;
+                _sidecar.Start();
+                _sidecar.Configure(_pendingScope?.Roots?.ToArray() ?? Array.Empty<string>(), CurrentConfig());
+                if (_pendingScope != null) SendScope();
+
+                _status.Visibility = Visibility.Collapsed;
+                _webView.Visibility = Visibility.Visible;
+                _webView.Source = new Uri($"https://{VirtualHost}/index.html");
             }
-
-            await _webView.EnsureCoreWebView2Async();
-            _webView.CoreWebView2.SetVirtualHostNameToFolderMapping(
-                VirtualHost, webviewDir, Microsoft.Web.WebView2.Core.CoreWebView2HostResourceAccessKind.Allow);
-            _webView.CoreWebView2.WebMessageReceived += (_, e) =>
+            catch (Exception ex)
             {
-                try { _sidecar?.PostFromWebView(JToken.Parse(e.WebMessageAsJson)); }
-                catch (Exception ex) { Debug.WriteLine("[npm] bad web message: " + ex); }
-            };
+                ShowStatus("The npm Package Manager failed to start:\n\n" + ex);
+            }
+        }
 
-            _sidecar = new SidecarProcess(nodeExe, sidecarJs, OnSidecarCallAsync, OnSidecarWebMessage);
-            _sidecar.Ready += () =>
+        private void OnSidecarReady()
+        {
+            _ = ThreadHelper.JoinableTaskFactory.RunAsync(async () =>
             {
+                await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();
                 _ready = true;
-                _ = ThreadHelper.JoinableTaskFactory.RunAsync(async () =>
+                // Re-send only the scope (not `configure`) in case it arrived
+                // after start-up. `configure` was already sent once by InitializeAsync.
+                SendScope();
+            });
+        }
+
+        private void OnSidecarExited(int code, string stderrTail)
+        {
+            _ = ThreadHelper.JoinableTaskFactory.RunAsync(async () =>
+            {
+                await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();
+                if (!_ready)
                 {
-                    await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();
-                    PushScopeIfReady();
-                });
-            };
-            _sidecar.Start();
-
-            await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();
-            _sidecar.Configure(CurrentRoots(), _package.Options.ToConfig());
-            _webView.CoreWebView2.Navigate($"https://{VirtualHost}/index.html");
+                    ShowStatus(
+                        "The npm Package Manager engine exited (code " + code + ") before it was ready.\n\n" +
+                        (string.IsNullOrWhiteSpace(stderrTail) ? "" : stderrTail));
+                }
+            });
         }
 
-        private string[] CurrentRoots()
+        private void SendScope()
         {
-            return _pendingScope?.Roots?.ToArray() ?? Array.Empty<string>();
-        }
-
-        private void PushScopeIfReady()
-        {
-            if (!_ready || _sidecar == null || _pendingScope == null) return;
-            _sidecar.Configure(_pendingScope.Roots.ToArray(), _package.Options.ToConfig());
+            if (_sidecar == null || _pendingScope == null) return;
             _sidecar.SetScope(
                 _pendingScope.OpenScope.ToArray(),
                 JArray.FromObject(_pendingScope.InitializableDirs.Select(d => new { dir = d.Dir, name = d.Name })));
         }
+
+        /* ------------------------------ theming ------------------------------ */
+
+        private static string ThemeApplyScript()
+        {
+            var css = JsonConvert.ToString(VsThemeBridge.BuildRootCss());
+            var kind = JsonConvert.ToString(VsThemeBridge.ThemeKind);
+            return
+                "(function(){var css=" + css + ",kind=" + kind + ";" +
+                "var s=document.getElementById('vs-theme')||document.createElement('style');" +
+                "s.id='vs-theme';s.textContent=css;(document.head||document.documentElement).appendChild(s);" +
+                "document.documentElement.setAttribute('data-vscode-theme-kind',kind);})();";
+        }
+
+        private static string BuildThemeInitScript() =>
+            // Run now (head may not exist yet -> attaches to <html>) and again once
+            // the DOM is parsed so the <style> ends up after the page stylesheet.
+            "(function(){var run=function(){" + ThemeApplyScript() + "};run();" +
+            "document.addEventListener('DOMContentLoaded',run);})();";
+
+        private void ApplyPreferredColorScheme()
+        {
+            try
+            {
+                _webView.CoreWebView2.Profile.PreferredColorScheme =
+                    VsThemeBridge.IsDark ? CoreWebView2PreferredColorScheme.Dark : CoreWebView2PreferredColorScheme.Light;
+            }
+            catch { /* older WebView2 runtime without Profile — the injected CSS still themes the UI */ }
+        }
+
+        private void ReapplyTheme()
+        {
+            _ = ThreadHelper.JoinableTaskFactory.RunAsync(async () =>
+            {
+                await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();
+                if (_webView.CoreWebView2 == null) return;
+                await _webView.CoreWebView2.ExecuteScriptAsync(ThemeApplyScript());
+                ApplyPreferredColorScheme();
+            });
+        }
+
+        private void OnVsThemeChanged(ThemeChangedEventArgs e) => ReapplyTheme();
 
         private void OnSidecarWebMessage(JToken data)
         {
@@ -231,6 +359,11 @@ namespace SocklessNpm.VisualStudio.ToolWindows
 
         public void Dispose()
         {
+            if (_themeSubscribed)
+            {
+                VSColorTheme.ThemeChanged -= OnVsThemeChanged;
+                _themeSubscribed = false;
+            }
             _sidecar?.Dispose();
             _webView?.Dispose();
         }

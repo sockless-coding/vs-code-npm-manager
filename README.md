@@ -106,15 +106,34 @@ every project in it.
 npm install            # bootstrap the workspaces
 npm run typecheck
 npm run test:unit
-npm run build           # apps/vscode bundle + the VS webview/sidecar bundles
-npm run build:vscode    # just the VS Code extension
-npm run build:vs        # just the Visual Studio webview + sidecar bundles
-npm run package:vscode  # produce the VS Code .vsix
-npm run package:vs      # produce the Visual Studio .vsix (needs VS MSBuild — see apps/visualstudio/README.md)
 ```
 
 In VS Code, the **Run Extension** launch config F5-runs `apps/vscode` against
 `sample-workspace`.
+
+### Building the .vsix packages
+
+The quickest path — Windows batch files in the repo root that build and drop the
+`.vsix` into `dist/`:
+
+| Script | Builds |
+|---|---|
+| `build-vscode.bat` | the VS Code extension |
+| `build-vs.bat` | the Visual Studio 2026 extension (needs Node + VS MSBuild) |
+| `build-all.bat` | both |
+
+The equivalent npm scripts:
+
+```sh
+npm run build           # apps/vscode bundle + the VS webview/sidecar bundles
+npm run build:vscode    # just the VS Code extension
+npm run build:vs        # just the Visual Studio webview + sidecar bundles
+npm run package:vscode  # produce the VS Code .vsix (in apps/vscode/)
+npm run package:vs      # produce the Visual Studio .vsix (in apps/visualstudio/src/bin/Release/)
+```
+
+See [`apps/visualstudio/README.md`](apps/visualstudio/README.md) for the
+Visual Studio build prerequisites.
 
 ## Requirements
 

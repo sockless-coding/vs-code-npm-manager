@@ -20,8 +20,18 @@ namespace SocklessNpm.VisualStudio.Sidecar
         private readonly Func<string, JObject, Task<object>> _onCall;
         private readonly Action<JToken> _onWebMessage;
         private readonly object _writeLock = new object();
+        private readonly System.Text.StringBuilder _stderrTail = new System.Text.StringBuilder();
 
         public event Action Ready;
+
+        /// <summary>Raised (with the exit code and the tail of stderr) if the node process exits.</summary>
+        public event Action<int, string> Exited;
+
+        /// <summary>The last few KB written to stderr — the engine log, useful when start-up fails.</summary>
+        public string StdErrTail
+        {
+            get { lock (_stderrTail) { return _stderrTail.ToString(); } }
+        }
 
         public SidecarProcess(
             string nodeExe,
@@ -51,7 +61,21 @@ namespace SocklessNpm.VisualStudio.Sidecar
             };
 
             _process.OutputDataReceived += (_, e) => { if (e.Data != null) HandleLine(e.Data); };
-            _process.ErrorDataReceived += (_, e) => { if (e.Data != null) Debug.WriteLine("[npm-sidecar] " + e.Data); };
+            _process.ErrorDataReceived += (_, e) =>
+            {
+                if (e.Data == null) return;
+                Debug.WriteLine("[npm-sidecar] " + e.Data);
+                lock (_stderrTail)
+                {
+                    _stderrTail.Append(e.Data).Append('\n');
+                    if (_stderrTail.Length > 8192) _stderrTail.Remove(0, _stderrTail.Length - 8192);
+                }
+            };
+            _process.Exited += (_, __) =>
+            {
+                try { Exited?.Invoke(_process.ExitCode, StdErrTail); }
+                catch { /* best effort */ }
+            };
         }
 
         public void Start()

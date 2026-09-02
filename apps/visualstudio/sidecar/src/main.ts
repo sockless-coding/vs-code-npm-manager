@@ -10,9 +10,14 @@
  *     { t: "callResult", id: number, value: unknown } // answer to a "call"
  *
  *   sidecar -> C#
- *     { t: "ready" }
+ *     { t: "ready" }                                   // sent EXACTLY ONCE
  *     { t: "web", data: <HostMessage> }               // forward to WebView2
  *     { t: "call", id: number, method: string, payload: object }  // ask the IDE
+ *
+ * `ready` is emitted only for the first `configure`. A later `configure` (roots
+ * changed because the manager was reopened from a different project/solution)
+ * re-runs discovery silently — echoing `ready` there would make the C# side
+ * re-send `configure` and spin forever.
  *
  * stderr is the engine log; stdout is protocol only.
  */
@@ -62,10 +67,16 @@ async function handleLine(line: string): Promise<void> {
 
   switch (msg.t) {
     case "configure": {
+      const firstTime = !engine;
       host.configure({ roots: msg.roots ?? [], config: msg.config ?? {} });
       const e = ensureEngine();
-      await e.ready();
-      send({ t: "ready" });
+      if (firstTime) {
+        await e.ready();
+        send({ t: "ready" });
+      } else {
+        // Roots and/or settings changed — re-discover, but do NOT echo `ready`.
+        await e.refresh();
+      }
       return;
     }
 

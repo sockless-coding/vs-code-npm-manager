@@ -22,16 +22,23 @@ export class SidecarHost implements HostServices {
   private roots: string[] = [];
   private config: Record<string, unknown> = {};
   private readonly configListeners = new Set<() => void>();
-  private readonly watchers = new Set<{ glob: string; cb: () => void }>();
 
   constructor(private readonly bridge: HostBridge) {}
 
-  /** Apply (or re-apply) the roots/config the C# host pushed. */
+  /**
+   * Apply (or re-apply) the roots/config the C# host pushed. Only notifies
+   * `onConfigChange` listeners when the config object actually changed —
+   * re-discovery on a roots change is driven by the sidecar calling
+   * `engine.refresh()`, not from here, so this never re-enters a refresh loop.
+   */
   configure(input: SidecarConfigureInput): void {
+    const nextConfig = input.config ?? {};
+    const configChanged = JSON.stringify(nextConfig) !== JSON.stringify(this.config);
     this.roots = input.roots.map((r) => path.resolve(r));
-    this.config = input.config ?? {};
-    for (const l of [...this.configListeners]) l();
-    for (const w of [...this.watchers]) w.cb();
+    this.config = nextConfig;
+    if (configChanged) {
+      for (const l of [...this.configListeners]) l();
+    }
   }
 
   getConfig<T>(key: string, def: T): T {
@@ -61,15 +68,26 @@ export class SidecarHost implements HostServices {
     return [...new Set(out)];
   }
 
-  watchFiles(glob: string, cb: () => void): Disposable {
-    const entry = { glob, cb };
-    this.watchers.add(entry);
+  watchFiles(_glob: string, cb: () => void): Disposable {
+    // A recursive fs.watch cannot filter by glob, so filter in the handler:
+    // fire only for a manifest/lockfile change, and never for churn inside
+    // node_modules / .git (an `npm audit` or a git status must not restart the
+    // Installed check — that is what caused the flicker loop).
+    const relevant = /(^|[\\/])(package\.json|package-lock\.json|yarn\.lock|pnpm-lock\.yaml)$/;
+    const ignored = /[\\/](node_modules|\.git|\.hg|\.svn)[\\/]/;
+    let timer: NodeJS.Timeout | undefined;
+    const fire = () => {
+      if (timer) clearTimeout(timer);
+      timer = setTimeout(cb, 250);
+    };
+
     const fsWatchers = this.roots.map((root) => {
       try {
         return fs.watch(root, { recursive: true }, (_evt, name) => {
-          if (!name) return cb();
-          const rel = toPosix(String(name));
-          if (/(^|\/)(package\.json|package-lock\.json|yarn\.lock|pnpm-lock\.yaml)$/.test(rel)) cb();
+          if (!name) return;
+          const s = String(name);
+          if (ignored.test(s)) return;
+          if (relevant.test(s)) fire();
         });
       } catch {
         return undefined;
@@ -77,7 +95,7 @@ export class SidecarHost implements HostServices {
     });
     return {
       dispose: () => {
-        this.watchers.delete(entry);
+        if (timer) clearTimeout(timer);
         for (const w of fsWatchers) w?.close();
       }
     };

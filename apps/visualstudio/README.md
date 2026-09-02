@@ -56,12 +56,13 @@ whose `<ProjectTypeGuids>` include the VSIX GUID. A `Microsoft.NET.Sdk`
 from a Visual Studio install.
 
 ```sh
-# 1. from the repo root — build the shared webview + sidecar bundles
+# easiest — from the repo root, drops the .vsix in dist\
+build-vs.bat            # or build-all.bat for both extensions
+
+# or step by step:
 npm install
 npm run build:vs        # -> apps/visualstudio/webview/ and src/Sidecar/sidecar.js
-
-# 2a. one-shot: build the VSIX (locates MSBuild via vswhere, also runs step 1)
-npm run package:vs
+npm run package:vs      # locates MSBuild via vswhere, also runs build:vs
 #     -> apps/visualstudio/src/bin/Release/SocklessNpm.VisualStudio.vsix
 
 # 2b. or from a "Developer Command Prompt for VS 2026":
