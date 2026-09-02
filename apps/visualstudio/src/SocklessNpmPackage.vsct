@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="utf-8"?>
+<CommandTable xmlns="http://schemas.microsoft.com/VisualStudio/2005-10-18/CommandTable" xmlns:xs="http://www.w3.org/2001/XMLSchema">
+  <Extern href="stdidcmd.h" />
+  <Extern href="vsshlids.h" />
+
+  <Commands package="guidSocklessNpmPackage">
+    <Groups>
+      <Group guid="guidSocklessNpmCmdSet" id="ProjectContextGroup" priority="0x0600">
+        <Parent guid="guidSHLMainMenu" id="IDM_VS_CTXT_PROJNODE" />
+      </Group>
+      <Group guid="guidSocklessNpmCmdSet" id="SolutionContextGroup" priority="0x0600">
+        <Parent guid="guidSHLMainMenu" id="IDM_VS_CTXT_SOLNNODE" />
+      </Group>
+    </Groups>
+
+    <Buttons>
+      <Button guid="guidSocklessNpmCmdSet" id="OpenFromProjectCommandId" priority="0x0100" type="Button">
+        <Parent guid="guidSocklessNpmCmdSet" id="ProjectContextGroup" />
+        <Strings>
+          <ButtonText>Manage npm Packages...</ButtonText>
+        </Strings>
+      </Button>
+      <Button guid="guidSocklessNpmCmdSet" id="OpenFromSolutionCommandId" priority="0x0100" type="Button">
+        <Parent guid="guidSocklessNpmCmdSet" id="SolutionContextGroup" />
+        <Strings>
+          <ButtonText>Manage npm Packages (Solution)...</ButtonText>
+        </Strings>
+      </Button>
+    </Buttons>
+  </Commands>
+
+  <Symbols>
+    <GuidSymbol name="guidSocklessNpmPackage" value="{f0b8c1e2-4c1a-4b8e-9d2a-000000000010}" />
+    <GuidSymbol name="guidSocklessNpmCmdSet" value="{f0b8c1e2-4c1a-4b8e-9d2a-000000000011}">
+      <IDSymbol name="ProjectContextGroup" value="0x1020" />
+      <IDSymbol name="SolutionContextGroup" value="0x1021" />
+      <IDSymbol name="OpenFromProjectCommandId" value="0x0100" />
+      <IDSymbol name="OpenFromSolutionCommandId" value="0x0101" />
+    </GuidSymbol>
+  </Symbols>
+</CommandTable>

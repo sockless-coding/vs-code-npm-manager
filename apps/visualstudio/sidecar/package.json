@@ -1,0 +1,16 @@
+{
+  "name": "@npm-manager/vs-sidecar",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Node sidecar that runs the shared npm Package Manager engine for the Visual Studio VSIX, over newline-delimited JSON on stdio.",
+  "license": "MIT",
+  "main": "dist/sidecar.js",
+  "scripts": {
+    "build": "node esbuild.mjs",
+    "watch": "node esbuild.mjs --watch"
+  },
+  "dependencies": {
+    "@npm-manager/core": "0.1.0",
+    "@npm-manager/shared": "0.1.0"
+  }
+}

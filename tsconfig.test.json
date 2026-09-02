@@ -10,15 +10,19 @@
     "strict": true,
     "esModuleInterop": true,
     "skipLibCheck": true,
-    "forceConsistentCasingInFileNames": true
+    "forceConsistentCasingInFileNames": true,
+    "paths": {
+      "@npm-manager/shared": ["./packages/shared/src/index.ts"]
+    }
   },
   "include": [
-    "src/npm/versionRange.ts",
-    "src/npm/npmrc.ts",
-    "src/projects/jsonEdit.ts",
-    "src/projects/lockGraph.ts",
-    "src/projects/advisories.ts",
-    "src/webview/packageAge.ts",
+    "packages/shared/src/versionRange.ts",
+    "packages/shared/src/semverUtil.ts",
+    "packages/core/src/npm/npmrc.ts",
+    "packages/core/src/projects/jsonEdit.ts",
+    "packages/core/src/projects/lockGraph.ts",
+    "packages/core/src/projects/advisories.ts",
+    "packages/webview-ui/src/packageAge.ts",
     "test/unit/**/*.ts"
   ],
   "exclude": ["node_modules", "dist"]

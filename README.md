@@ -1,14 +1,44 @@
 # Sockless npm Package Manager
 
-A visual npm package manager for VS Code — browse, install, update and
-consolidate your `package.json` dependencies with a Visual Studio–like
-experience, instead of hand-editing JSON and shelling out to the CLI.
+A visual npm package manager with a Visual Studio–like experience — browse,
+install, update and consolidate your `package.json` dependencies instead of
+hand-editing JSON and shelling out to the CLI.
+
+It ships as two extensions built from one engine:
+
+| Target | Location | Status |
+|---|---|---|
+| **VS Code** | [`apps/vscode`](apps/vscode) | released |
+| **Visual Studio 2026** | [`apps/visualstudio`](apps/visualstudio) | new — see its [README](apps/visualstudio/README.md) |
 
 This is the npm/Node.js sibling of [Sockless NuGet Package
-Manager](https://github.com/sockless-coding/vs-code-nuget-manager), built to
-the same look and feel.
+Manager](https://github.com/sockless-coding/vs-code-nuget-manager), built to the
+same look and feel.
 
 ![Browse: searching the npm registry, with a version and dependency-type picker for the selected package](docs/screenshots/browse.png)
+
+## Repository layout
+
+A single npm-workspaces monorepo. Each extension is a thin host over shared
+packages:
+
+```
+packages/
+  shared/       types + pure helpers, no Node/editor dependency
+  core/         the host-agnostic engine (registry discovery, search, metadata,
+                project & lockfile analysis, npm audit chains, mutations) behind
+                a small HostServices interface
+  webview-ui/   the React panel, rendered in a VS Code webview or a VS WebView2
+  assets/       shared stylesheet + icon
+apps/
+  vscode/       VS Code extension — HostServices via the VS Code API
+  visualstudio/ VS 2026 extension — a C# VSIX hosting WebView2 + a Node sidecar
+                that runs packages/core
+```
+
+Adding a future target means implementing `HostServices` for it (or, for a second
+Visual Studio SDK model, reusing the existing sidecar) — the engine and UI are
+untouched.
 
 ## Features
 
@@ -41,6 +71,8 @@ the same look and feel.
 - **Supply-chain guardrail** — freshly published versions younger than a
   configurable minimum age are flagged and held back from the default
   version choice and from *Update All*.
+- **Create a `package.json`** — opening the manager on a folder (VS Code) or a
+  project (Visual Studio) that has none offers to initialise one in place.
 - Works with **npm, Yarn (classic) and pnpm** — the package manager is
   detected per project from its lockfile, with a format-preserving edit to
   `package.json` as a fallback when no CLI is available.
@@ -50,21 +82,44 @@ the same look and feel.
 
 ![Installed: a vulnerable transitive dependency resolved and listed with its full advisory chain](docs/screenshots/installed.png)
 
-## Getting started
+## Getting started (VS Code)
 
 Open a folder containing a `package.json`, then either:
 
 - Run **npm: Manage npm Packages...** from the Command Palette, or
 - Click the package icon in the editor title bar while a `package.json` is
   open, or
-- Right-click a `package.json` in the Explorer and choose **Manage npm
-  Packages...**.
+- Right-click a `package.json` (or a folder) in the Explorer and choose **Manage
+  npm Packages...**.
 
 ![Updates: every outdated package with its version history and Update All](docs/screenshots/updates.png)
 
+## Getting started (Visual Studio)
+
+See [`apps/visualstudio/README.md`](apps/visualstudio/README.md). In short:
+right-click a **project** to scope the manager to it, or a **solution** to span
+every project in it.
+
+## Developing
+
+```sh
+npm install            # bootstrap the workspaces
+npm run typecheck
+npm run test:unit
+npm run build           # apps/vscode bundle + the VS webview/sidecar bundles
+npm run build:vscode    # just the VS Code extension
+npm run build:vs        # just the Visual Studio webview + sidecar bundles
+npm run package:vscode  # produce the VS Code .vsix
+npm run package:vs      # produce the Visual Studio .vsix (needs VS MSBuild — see apps/visualstudio/README.md)
+```
+
+In VS Code, the **Run Extension** launch config F5-runs `apps/vscode` against
+`sample-workspace`.
+
 ## Requirements
 
-- VS Code 1.90 or newer.
+- VS Code 1.90 or newer, **or** Visual Studio 2026 with the extension-development
+  workload.
 - Node.js, and ideally npm, Yarn or pnpm on your `PATH`, so installs run
   through the real package manager and keep your lockfile in sync. Without
   one, the extension falls back to editing `package.json` directly and lets
@@ -79,14 +134,16 @@ Open a folder containing a `package.json`, then either:
 | `npmManager.packageManagerPath` | `""` | Path to the npm/yarn/pnpm executable to use. Leave empty to auto-detect from lockfiles and use the one on `PATH`. |
 | `npmManager.autoInstall` | `true` | Run an install automatically after adding, updating or removing packages, so the lockfile and `node_modules` stay in sync. |
 | `npmManager.minimumPackageAgeDays` | `7` | Minimum age in days before a newly published version is trusted. Newer versions are flagged and held back from *Update All* and the default version selection. `0` disables the check. |
-| `npmManager.usePackageManagerForEnumeration` | `false` | Reconcile the Installed view with `npm outdated --json` after the fast on-disk scan. Slower on large repos; npm-managed projects only. |
+| `npmManager.usePackageManagerForEnumeration` | `false` | Reconcile the Installed view with `npm audit --json` after the fast on-disk scan. Slower on large repos; npm-managed projects only. |
+
+In Visual Studio these live under **Tools → Options → npm Package Manager**.
 
 ## How it works
 
 - **Registries** are discovered from your `.npmrc` hierarchy (global, user,
-  and every `.npmrc` found walking up from each workspace folder), including
-  scoped registries (`@scope:registry=`) and auth tokens, plus anything added
-  via `npmManager.additionalRegistries`.
+  and every `.npmrc` found walking up from each workspace/project root),
+  including scoped registries (`@scope:registry=`) and auth tokens, plus
+  anything added via `npmManager.additionalRegistries`.
 - **Search and package details** come straight from the registry's search
   API and package document (`GET /<package>`), so version history, publish
   dates, dependencies and the readme come back in a single request.
@@ -115,6 +172,7 @@ Open a folder containing a `package.json`, then either:
 - Per-version download counts and package icons aren't part of the npm
   registry API, so they aren't shown (monthly download totals are, for
   packages on the public npmjs registry).
+- The Visual Studio extension requires Node.js on `PATH` for its engine sidecar.
 
 ## License
 

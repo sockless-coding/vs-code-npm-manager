@@ -1,6 +1,6 @@
 import { strict as assert } from "node:assert";
 import { test } from "node:test";
-import { collectAdvisories, NpmAuditAdvisory } from "../../src/projects/advisories";
+import { collectAdvisories, NpmAuditAdvisory } from "../../packages/core/src/projects/advisories";
 
 // Trimmed from a real `npm audit --json` run against a project depending on the
 // long-deprecated `request@2.81.0`, which pulls in several vulnerable
