@@ -1,6 +1,6 @@
 import { strict as assert } from "node:assert";
 import { test } from "node:test";
-import { parseNpmrc, mergeNpmrc, findAuthPrefix } from "../../src/npm/npmrc";
+import { parseNpmrc, mergeNpmrc, findAuthPrefix } from "../../packages/core/src/npm/npmrc";
 
 test("parses the default registry and scoped registries", () => {
   const p = parseNpmrc(`

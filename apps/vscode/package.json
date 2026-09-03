@@ -1,0 +1,142 @@
+{
+  "name": "vs-code-npm-manager",
+  "displayName": "Sockless npm Package Manager",
+  "description": "Visual npm package manager for VS Code — browse, install, update and consolidate packages with a Visual Studio-like experience.",
+  "version": "0.1.1",
+  "publisher": "sockless-coding",
+  "license": "MIT",
+  "author": "Jimmy Everling",
+  "icon": "media/icon.png",
+  "galleryBanner": {
+    "color": "#1a0d0d",
+    "theme": "dark"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/sockless-coding/vs-code-npm-manager.git"
+  },
+  "engines": {
+    "vscode": "^1.90.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "keywords": [
+    "npm",
+    "node",
+    "package.json",
+    "package manager",
+    "javascript",
+    "typescript",
+    "yarn",
+    "pnpm"
+  ],
+  "main": "./dist/extension.js",
+  "activationEvents": [
+    "workspaceContains:**/package.json"
+  ],
+  "contributes": {
+    "commands": [
+      {
+        "command": "npmManager.openManager",
+        "title": "Manage npm Packages...",
+        "category": "npm",
+        "icon": "$(package)"
+      },
+      {
+        "command": "npmManager.refresh",
+        "title": "Refresh",
+        "category": "npm",
+        "icon": "$(refresh)"
+      }
+    ],
+    "menus": {
+      "commandPalette": [
+        {
+          "command": "npmManager.refresh",
+          "when": "false"
+        }
+      ],
+      "editor/title": [
+        {
+          "command": "npmManager.openManager",
+          "when": "resourceFilename == package.json",
+          "group": "navigation"
+        }
+      ],
+      "explorer/context": [
+        {
+          "command": "npmManager.openManager",
+          "when": "resourceFilename == package.json",
+          "group": "7_modification"
+        },
+        {
+          "command": "npmManager.openManager",
+          "when": "explorerResourceIsFolder",
+          "group": "7_modification"
+        }
+      ]
+    },
+    "configuration": {
+      "title": "Sockless npm Package Manager",
+      "properties": {
+        "npmManager.defaultIncludePrerelease": {
+          "type": "boolean",
+          "default": false,
+          "description": "Include prerelease (e.g. -beta, -rc) versions in search results by default."
+        },
+        "npmManager.additionalRegistries": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "name": { "type": "string" },
+              "url": { "type": "string" }
+            }
+          },
+          "default": [],
+          "description": "Additional npm registries to query, merged with any discovered .npmrc registries."
+        },
+        "npmManager.packageManagerPath": {
+          "type": "string",
+          "default": "",
+          "description": "Path to the npm/yarn/pnpm executable to use. Leave empty to auto-detect from lockfiles and use the one on PATH."
+        },
+        "npmManager.autoInstall": {
+          "type": "boolean",
+          "default": true,
+          "description": "Run an install automatically after adding, updating or removing packages, so the lockfile and node_modules stay in sync."
+        },
+        "npmManager.minimumPackageAgeDays": {
+          "type": "number",
+          "default": 7,
+          "minimum": 0,
+          "description": "Minimum age in days before a newly published package version is trusted. Newer versions are flagged as a potential supply-chain risk and held back from 'Update All' and the default version selection. Set to 0 to disable the check."
+        },
+        "npmManager.usePackageManagerForEnumeration": {
+          "type": "boolean",
+          "default": false,
+          "description": "Reconcile the Installed view with 'npm audit --json' after the fast on-disk scan. Slower on large repos, but picks up advisories the offline scan can miss. Only used for npm projects."
+        }
+      }
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run package",
+    "build": "node esbuild.mjs",
+    "watch": "node esbuild.mjs --watch",
+    "package": "node esbuild.mjs --production",
+    "vsix": "vsce package --no-dependencies",
+    "vsix:prerelease": "vsce package --no-dependencies --pre-release"
+  },
+  "dependencies": {
+    "@npm-manager/assets": "0.1.0",
+    "@npm-manager/core": "0.1.0",
+    "@npm-manager/shared": "0.1.0",
+    "@npm-manager/webview-ui": "0.1.0",
+    "@vscode/codicons": "^0.0.36",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "semver": "^7.6.3"
+  }
+}

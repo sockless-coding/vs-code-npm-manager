@@ -7,7 +7,7 @@ import {
   toCaretRange,
   applyVersionPrefix,
   detectVersionPrefix
-} from "../../src/npm/versionRange";
+} from "../../packages/shared/src/versionRange";
 
 test("recognises exact-version pins", () => {
   assert.equal(isExactVersionPin("1.2.3"), true);

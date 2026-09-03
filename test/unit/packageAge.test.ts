@@ -1,7 +1,7 @@
 import { strict as assert } from "node:assert";
 import { test } from "node:test";
-import { ageInDays, formatRelativeAge, pickDefaultVersion } from "../../src/webview/packageAge";
-import type { VersionInfo } from "../../src/panel/messaging";
+import { ageInDays, formatRelativeAge, pickDefaultVersion } from "../../packages/webview-ui/src/packageAge";
+import type { VersionInfo } from "../../packages/shared/src/messaging";
 
 const NOW = Date.parse("2026-08-30T00:00:00Z");
 const daysAgo = (n: number) => new Date(NOW - n * 24 * 60 * 60 * 1000).toISOString();

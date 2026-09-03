@@ -1,6 +1,6 @@
 import { strict as assert } from "node:assert";
 import { test } from "node:test";
-import { removeDependency, upsertDependency } from "../../src/projects/jsonEdit";
+import { removeDependency, upsertDependency } from "../../packages/core/src/projects/jsonEdit";
 
 const pkg = `{
   "name": "demo",

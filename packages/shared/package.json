@@ -1,0 +1,12 @@
+{
+  "name": "@npm-manager/shared",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Host-agnostic types and pure helpers shared by every npm Package Manager target.",
+  "license": "MIT",
+  "main": "src/index.ts",
+  "types": "src/index.ts",
+  "dependencies": {
+    "semver": "^7.6.3"
+  }
+}
