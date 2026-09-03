@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <PackageManifest Version="2.0.0" xmlns="http://schemas.microsoft.com/developer/vsx-schema/2011" xmlns:d="http://schemas.microsoft.com/developer/vsx-schema-design/2011">
   <Metadata>
-    <Identity Id="SocklessNpm.VisualStudio.f0b8c1e2-4c1a-4b8e-9d2a-000000000001" Version="0.1.0" Language="en-US" Publisher="sockless-coding" />
+    <Identity Id="SocklessNpm.VisualStudio.f0b8c1e2-4c1a-4b8e-9d2a-000000000001" Version="0.1.0" Language="en-US" Publisher="Sockless Coding" />
     <DisplayName>Sockless npm Package Manager</DisplayName>
     <Description xml:space="preserve">Visual npm package manager for Visual Studio — browse, install, update and consolidate package.json dependencies from a project or across a whole solution.</Description>
     <MoreInfo>https://github.com/sockless-coding/vs-code-npm-manager</MoreInfo>
