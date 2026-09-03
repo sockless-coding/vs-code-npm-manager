@@ -5,6 +5,8 @@
     <DisplayName>Sockless npm Package Manager</DisplayName>
     <Description xml:space="preserve">Visual npm package manager for Visual Studio — browse, install, update and consolidate package.json dependencies from a project or across a whole solution.</Description>
     <MoreInfo>https://github.com/sockless-coding/vs-code-npm-manager</MoreInfo>
+    <Icon>Resources\Icon.png</Icon>
+    <PreviewImage>Resources\Icon.png</PreviewImage>
     <Tags>npm;node;package manager;javascript;typescript;package.json</Tags>
   </Metadata>
   <Installation>

@@ -9,7 +9,7 @@ call npm run package:vs
 if errorlevel 1 goto :error
 
 if not exist "dist" mkdir "dist"
-copy /y "apps\visualstudio\src\bin\Release\SocklessNpm.VisualStudio.vsix" "dist\" >nul
+copy /y "apps\visualstudio\src\bin\Release\vs-npm-manager.vsix" "dist\" >nul
 if errorlevel 1 goto :error
 
 echo.

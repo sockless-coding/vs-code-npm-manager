@@ -25,7 +25,7 @@
     <ProjectTypeGuids>{82b43b9b-a64c-4715-b499-d71e9ca2bd60};{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}</ProjectTypeGuids>
     <OutputType>Library</OutputType>
     <RootNamespace>SocklessNpm.VisualStudio</RootNamespace>
-    <AssemblyName>SocklessNpm.VisualStudio</AssemblyName>
+    <AssemblyName>vs-npm-manager</AssemblyName>
     <TargetFrameworkVersion>v4.8</TargetFrameworkVersion>
     <LangVersion>latest</LangVersion>
     <!-- 'annotations' keeps the nullable reference syntax meaningful without the
@@ -77,6 +77,15 @@
     <None Include="source.extension.vsixmanifest">
       <SubType>Designer</SubType>
     </None>
+  </ItemGroup>
+
+  <!-- The gallery icon shown in Manage Extensions / the VS Installer, referenced
+       by <Icon>/<PreviewImage> in source.extension.vsixmanifest. -->
+  <ItemGroup>
+    <Content Include="Resources\Icon.png">
+      <IncludeInVSIX>true</IncludeInVSIX>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
   </ItemGroup>
 
   <!-- The Node sidecar bundle + the standalone webview, produced by `npm run build:vs`. -->

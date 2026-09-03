@@ -3,6 +3,24 @@
 The Visual Studio 2026 build of the npm package manager. Same panel and engine as
 the VS Code extension; it just runs inside a Visual Studio tool window.
 
+## Screenshots
+
+**Browse** — search the registry, pick a version and dependency type, and install
+into the project or solution the tool window was opened from.
+
+![Browse tab](../../docs/screenshots/vs-browse.png)
+
+**Installed** — every package referenced across the open scope, with vulnerable
+and deprecated packages flagged and their full advisory chain shown in the detail
+pane.
+
+![Installed tab, showing a vulnerable transitive dependency's advisory chain](../../docs/screenshots/vs-installed.png)
+
+**Updates** — installed packages with a newer version available, with a one-click
+**Update All**.
+
+![Updates tab](../../docs/screenshots/vs-updates.png)
+
 ## How it is put together
 
 ```
@@ -63,7 +81,7 @@ build-vs.bat            # or build-all.bat for both extensions
 npm install
 npm run build:vs        # -> apps/visualstudio/webview/ and src/Sidecar/sidecar.js
 npm run package:vs      # locates MSBuild via vswhere, also runs build:vs
-#     -> apps/visualstudio/src/bin/Release/SocklessNpm.VisualStudio.vsix
+#     -> apps/visualstudio/src/bin/Release/vs-npm-manager.vsix
 
 # 2b. or from a "Developer Command Prompt for VS 2026":
 msbuild apps\visualstudio\src\SocklessNpm.VisualStudio.csproj -restore ^
@@ -76,7 +94,7 @@ msbuild apps\visualstudio\src\SocklessNpm.VisualStudio.csproj -restore ^
 `npm run build:vs` must run before every VSIX build so `webview/` and
 `Sidecar/sidecar.js` are current — they are `.gitignore`d build output.
 
-If you compiled and only got `bin\Debug\...\SocklessNpm.VisualStudio.dll` with no
+If you compiled and only got `bin\Debug\...\vs-npm-manager.dll` with no
 `.vsix`, you built with `dotnet build` or against an SDK-style project — use one
 of the MSBuild paths above instead.
 

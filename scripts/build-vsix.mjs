@@ -46,5 +46,5 @@ console.log(`> ${msbuild}`);
 const args = [project, "-restore", "-t:Rebuild", `-p:Configuration=${configuration}`, "-p:DeployExtension=false", "-v:m", "-nologo"];
 execFileSync(msbuild, args, { stdio: "inherit" });
 
-const vsix = path.join(root, "apps", "visualstudio", "src", "bin", configuration, "SocklessNpm.VisualStudio.vsix");
+const vsix = path.join(root, "apps", "visualstudio", "src", "bin", configuration, "vs-npm-manager.vsix");
 console.log(existsSync(vsix) ? `\nVSIX: ${vsix}` : "\nBuild finished but no .vsix was produced — check the log above.");
