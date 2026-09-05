@@ -192,7 +192,6 @@ export class InstalledService {
       this.pushEnriched("updates");
     }
 
-    this.notify.progress("Checking for known vulnerabilities…", false);
     await this.applyAudits(snap, token);
     if (token !== this.runToken) return;
     this.pushEnriched("vulnerabilities");
@@ -240,7 +239,17 @@ export class InstalledService {
     }
   }
 
-  /** Run `npm audit --json` once per distinct npm-managed lockfile root and fold advisories in. */
+  /**
+   * Run `npm audit --json` once per distinct npm-managed lockfile root and fold
+   * advisories in.
+   *
+   * `npm audit` is the slowest step of enrichment — it shells out and hits the
+   * registry's advisory endpoint with no offline fallback — so this both keeps
+   * the webview banner alive with an elapsed-time ticker (a bare "Checking…"
+   * line gave no sign anything was happening) and streams partial results in as
+   * each root finishes rather than withholding everything until the last one.
+   * Roots are audited with a little concurrency; most workspaces have exactly one.
+   */
   private async applyAudits(snap: InstalledPackage[], token: number): Promise<void> {
     const byId = new Map(snap.map((p) => [p.id.toLowerCase(), p]));
     const roots = new Map<string, { dir: string; projectPaths: string[] }>();
@@ -253,26 +262,52 @@ export class InstalledService {
       bucket.projectPaths.push(project.info.path);
       roots.set(key, bucket);
     }
-    if (roots.size === 0 || !(await this.cli.isAvailable("npm"))) return;
+    const rootList = [...roots.values()];
+    if (rootList.length === 0 || !(await this.cli.isAvailable("npm"))) return;
 
-    for (const { dir, projectPaths } of roots.values()) {
-      if (token !== this.runToken) return;
-      const result = await this.cli.audit(dir);
-      if (!result?.vulnerabilities) continue;
-      for (const name of Object.keys(result.vulnerabilities)) {
-        const entry = byId.get(name.toLowerCase());
-        if (!entry) continue;
-        // Resolve the FULL advisory chain, not just this package's own `via` —
-        // `npm audit` often only attaches the real advisory object to a package
-        // several hops down (e.g. a direct `request` dependency is flagged only
-        // through a bare package-name reference to its bundled `form-data`),
-        // so a shallow read leaves the direct package's own list looking empty
-        // or vague until you drill into the transitive package that "really" has it.
-        const advisories = collectAdvisories(name, result.vulnerabilities);
-        if (advisories.length === 0) continue;
-        this.applyAdvisories(entry, advisories);
-        for (const p of projectPaths) this.markVulnerableProject(entry, p);
-      }
+    const total = rootList.length;
+    const started = Date.now();
+    let done = 0;
+    let lastPush = 0;
+    const label = (): string => {
+      const secs = Math.round((Date.now() - started) / 1000);
+      const scope = total === 1 ? "for known vulnerabilities" : `${done}/${total} projects for known vulnerabilities`;
+      return `Scanning ${scope}… (${secs}s)`;
+    };
+
+    this.notify.progress(label(), false);
+    const ticker = setInterval(() => {
+      if (token === this.runToken) this.notify.progress(label(), false);
+    }, 1000);
+
+    try {
+      await mapWithConcurrency(rootList, 4, async ({ dir, projectPaths }) => {
+        if (token !== this.runToken) return;
+        const result = await this.cli.audit(dir);
+        done++;
+        if (token !== this.runToken) return;
+        for (const name of Object.keys(result?.vulnerabilities ?? {})) {
+          const entry = byId.get(name.toLowerCase());
+          if (!entry) continue;
+          // Resolve the FULL advisory chain, not just this package's own `via` —
+          // `npm audit` often only attaches the real advisory object to a package
+          // several hops down (e.g. a direct `request` dependency is flagged only
+          // through a bare package-name reference to its bundled `form-data`),
+          // so a shallow read leaves the direct package's own list looking empty
+          // or vague until you drill into the transitive package that "really" has it.
+          const advisories = collectAdvisories(name, result!.vulnerabilities!);
+          if (advisories.length === 0) continue;
+          this.applyAdvisories(entry, advisories);
+          for (const p of projectPaths) this.markVulnerableProject(entry, p);
+        }
+        this.notify.progress(label(), false);
+        if (Date.now() - lastPush > 400) {
+          lastPush = Date.now();
+          this.pushEnriched("vulnerabilities");
+        }
+      });
+    } finally {
+      clearInterval(ticker);
     }
   }
 

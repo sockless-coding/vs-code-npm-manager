@@ -358,7 +358,12 @@ export function App() {
           install afterwards.
         </div>
       )}
-      {progress && <div className="banner">{progress}</div>}
+      {progress && (
+        <div className="banner banner-progress">
+          <span className="codicon codicon-loading codicon-modifier-spin" aria-hidden="true" />
+          {progress}
+        </div>
+      )}
       {initializableDirs.length > 0 && (
         <div className="banner">
           {initializableDirs.map((d) => (

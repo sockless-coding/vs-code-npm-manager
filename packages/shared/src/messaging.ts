@@ -32,6 +32,15 @@ export interface VulnerabilityInfo {
   range?: string;
 }
 
+/** Map an npm severity word (`info`/`low`/`moderate`/`high`/`critical`) to the 0..3 rank used by {@link VulnerabilityInfo.severity}. */
+export const SEVERITY_RANK: Record<string, number> = {
+  info: 0,
+  low: 0,
+  moderate: 1,
+  high: 2,
+  critical: 3
+};
+
 export interface PackageSummary {
   id: string;
   version: string;
@@ -85,6 +94,15 @@ export interface VersionInfo {
   isPrerelease: boolean;
   downloads?: number;
   published?: string;
+  /** The `deprecated` message from the packument for this exact version, when set. */
+  deprecated?: string;
+  /**
+   * Advisories whose vulnerable range covers this exact version, worst-first.
+   * Populated from the registry's bulk advisory endpoint when the detail view
+   * is opened; absent when the endpoint is unavailable (e.g. a private registry
+   * that does not implement it).
+   */
+  vulnerabilities?: VulnerabilityInfo[];
 }
 
 export interface ProjectInfo {

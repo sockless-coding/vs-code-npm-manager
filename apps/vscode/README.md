@@ -19,7 +19,9 @@ experience, instead of hand-editing JSON and shelling out to the CLI.
   optionalDependencies, and choose how the version is written (`^`, `~`, exact,
   `>=`). **Pin / Unpin** to an exact version.
 - **Vulnerability scanning** via `npm audit`, with the full advisory chain
-  resolved so a direct dependency shows its real exposure.
+  resolved so a direct dependency shows its real exposure. The version picker in
+  the detail pane also marks which individual versions are **deprecated** or have
+  a **known advisory**, so you can pick a clean one before installing.
 - **Supply-chain guardrail** — freshly published versions are held back from
   *Update All* until they reach a configurable minimum age.
 - **Create a `package.json`** when you open the manager on a folder that has none.

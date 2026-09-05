@@ -8,8 +8,8 @@
  */
 
 import { HttpClient } from "./httpClient";
-import { sortVersionsDescending, isPrerelease } from "@npm-manager/shared";
-import { PackageDependencyGroup, PackageDetail, VersionInfo } from "@npm-manager/shared";
+import { sortVersionsDescending, isPrerelease, versionInRange, SEVERITY_RANK } from "@npm-manager/shared";
+import { PackageDependencyGroup, PackageDetail, VersionInfo, VulnerabilityInfo } from "@npm-manager/shared";
 
 export interface VersionManifest {
   name: string;
@@ -38,6 +38,16 @@ export interface Packument {
 }
 
 const DOC_TTL = 5 * 60 * 1000;
+const ADVISORY_TTL = 30 * 60 * 1000;
+
+/** One entry from the registry's bulk advisory endpoint (`/-/npm/v1/security/advisories/bulk`). */
+interface BulkAdvisory {
+  id?: number;
+  url?: string;
+  title?: string;
+  severity?: string;
+  vulnerable_versions?: string;
+}
 
 export class MetadataService {
   constructor(private readonly http: HttpClient) {}
@@ -85,8 +95,11 @@ export class MetadataService {
     const versions: VersionInfo[] = allVersions.map((v) => ({
       version: v,
       isPrerelease: isPrerelease(v),
-      published: doc.time?.[v]
+      published: doc.time?.[v],
+      deprecated: typeof doc.versions?.[v]?.deprecated === "string" ? doc.versions[v].deprecated : undefined
     }));
+
+    await this.foldAdvisories(registryUrl, doc.name ?? packageId, versions, signal);
 
     const latestTag = doc["dist-tags"]?.latest;
     const selectable = versions.filter((v) => includePrerelease || !v.isPrerelease);
@@ -111,6 +124,59 @@ export class MetadataService {
       source: registryName
     };
   }
+
+  /**
+   * Ask the registry's bulk advisory endpoint which of `versions` are affected by
+   * a known advisory and attach the matches to each {@link VersionInfo}. This is
+   * the same endpoint `npm audit` uses; the response lists advisories with a
+   * `vulnerable_versions` range, so the per-version match is a local semver check.
+   *
+   * Best-effort: private or proxying registries frequently do not implement the
+   * endpoint (404 / non-JSON), in which case versions are simply left unmarked.
+   */
+  private async foldAdvisories(
+    registryUrl: string,
+    packageId: string,
+    versions: VersionInfo[],
+    signal?: AbortSignal
+  ): Promise<void> {
+    if (versions.length === 0) return;
+    let advisories: BulkAdvisory[];
+    try {
+      const url = new URL("-/npm/v1/security/advisories/bulk", ensureTrailingSlash(registryUrl)).toString();
+      const body = { [packageId]: versions.map((v) => v.version) };
+      const res = await this.http.postJson<Record<string, BulkAdvisory[]>>(url, body, {
+        ttlMs: ADVISORY_TTL,
+        signal
+      });
+      advisories = res?.[packageId] ?? [];
+    } catch {
+      return;
+    }
+    if (advisories.length === 0) return;
+
+    for (const v of versions) {
+      const hits = new Map<string, VulnerabilityInfo>();
+      for (const a of advisories) {
+        if (!a.vulnerable_versions || !a.url) continue;
+        if (hits.has(a.url)) continue;
+        if (!versionInRange(v.version, a.vulnerable_versions)) continue;
+        hits.set(a.url, {
+          severity: SEVERITY_RANK[a.severity ?? ""] ?? 0,
+          advisoryUrl: a.url,
+          title: a.title,
+          range: a.vulnerable_versions
+        });
+      }
+      if (hits.size > 0) {
+        v.vulnerabilities = [...hits.values()].sort((x, y) => y.severity - x.severity);
+      }
+    }
+  }
+}
+
+function ensureTrailingSlash(url: string): string {
+  return url.endsWith("/") ? url : url + "/";
 }
 
 function mapDependencyGroups(manifest: VersionManifest | undefined): PackageDependencyGroup[] {

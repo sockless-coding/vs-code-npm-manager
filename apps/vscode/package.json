@@ -2,7 +2,7 @@
   "name": "vs-code-npm-manager",
   "displayName": "Sockless npm Package Manager",
   "description": "Visual npm package manager for VS Code — browse, install, update and consolidate packages with a Visual Studio-like experience.",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "publisher": "sockless-coding",
   "license": "MIT",
   "author": "Jimmy Everling",

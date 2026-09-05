@@ -114,6 +114,23 @@ export function PackageDetails({
   const selectedInfo = detail.versions.find((v) => v.version === version);
   const selectedAgeDays = ageInDays(selectedInfo?.published);
   const selectedBelowMinAge = minPackageAgeDays > 0 && selectedAgeDays < minPackageAgeDays;
+  // Deprecation / advisory status for the version currently chosen in the picker —
+  // the packument carries this per-version, so it stays correct as the selection
+  // changes without another round-trip. Falls back to the detail-level deprecation
+  // (the manifest npm resolved for the default version) when the per-version
+  // packument entry has no message of its own.
+  const selectedDeprecation =
+    selectedInfo?.deprecated ??
+    (version === detail.selectedVersion ? detail.deprecation?.message || detail.deprecation?.reasons.join(", ") : undefined);
+  const selectedVulnerabilities = selectedInfo?.vulnerabilities ?? [];
+  // The concrete version currently installed (resolved from the lockfile, else
+  // the requested/pinned reference). When the picker still points at that
+  // version, its per-version advisory notice would just duplicate the richer
+  // "installed version has advisories" notice, so it is suppressed.
+  const installedConcreteVersion = installedForPackage
+    ? stripVersionPin(installedForPackage.resolvedVersion || installedVersion)
+    : "";
+  const selectedMatchesInstalled = !!installedConcreteVersion && installedConcreteVersion === version;
 
   const [selectedProjects, setSelectedProjects] = React.useState<Set<string>>(new Set());
   const scopeKey = preselectProjectPaths.join("|");
@@ -198,26 +215,32 @@ export function PackageDetails({
         </div>
       </div>
 
-      {detail.deprecation && (
-        <div className="callout callout-warn">
-          <strong>Deprecated.</strong> {detail.deprecation.message || detail.deprecation.reasons.join(", ")}
-        </div>
-      )}
-      {detail.vulnerabilities && detail.vulnerabilities.length > 0 && (
-        <div className="callout callout-error">
-          <strong>Known vulnerabilities:</strong>
-          <ul className="advisories">{detail.vulnerabilities.map((v, i) => <AdvisoryItem key={i} v={v} />)}</ul>
-        </div>
-      )}
       {installedForPackage?.vulnerabilities && installedForPackage.vulnerabilities.length > 0 && (
         <div className="callout callout-error">
           <strong>
-            The installed{installedForPackage.transitive ? " (transitive)" : ""} version has{" "}
+            The installed{installedForPackage.transitive ? " (transitive)" : ""} version
+            {installedConcreteVersion ? ` (${installedConcreteVersion})` : ""} has{" "}
             {installedForPackage.vulnerabilities.length === 1 ? "an advisory" : "advisories"}, including any
             from its own dependencies:
           </strong>
           <ul className="advisories">
             {installedForPackage.vulnerabilities.map((v, i) => <AdvisoryItem key={i} v={v} />)}
+          </ul>
+        </div>
+      )}
+      {selectedDeprecation && (
+        <div className="callout callout-warn">
+          <strong>Version {version} is deprecated.</strong> {selectedDeprecation}
+        </div>
+      )}
+      {selectedVulnerabilities.length > 0 && !selectedMatchesInstalled && (
+        <div className="callout callout-error">
+          <strong>
+            {installedForPackage ? "Selected version" : "Version"} {version} has{" "}
+            {selectedVulnerabilities.length === 1 ? "a known advisory" : "known advisories"}:
+          </strong>
+          <ul className="advisories">
+            {selectedVulnerabilities.map((v, i) => <AdvisoryItem key={i} v={v} />)}
           </ul>
         </div>
       )}
@@ -253,10 +276,13 @@ export function PackageDetails({
           <select value={version} onChange={(e) => setVersion(e.target.value)} disabled={busy}>
             {visibleVersions.map((v) => {
               const tooNew = minPackageAgeDays > 0 && ageInDays(v.published) < minPackageAgeDays;
+              const worstVuln = v.vulnerabilities?.[0];
               return (
                 <option key={v.version} value={v.version}>
                   {v.version}
                   {v.isPrerelease ? "  (prerelease)" : ""}
+                  {worstVuln ? `  · ⚠ ${severityLabel(worstVuln.severity).toLowerCase()} vuln` : ""}
+                  {v.deprecated ? "  · deprecated" : ""}
                   {v.published ? `  · ${formatDate(v.published)}` : ""}
                   {tooNew ? `  · released ${formatRelativeAge(v.published)}` : ""}
                 </option>

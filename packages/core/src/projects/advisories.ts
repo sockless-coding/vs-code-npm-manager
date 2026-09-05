@@ -14,7 +14,7 @@
  * No VS Code dependency, so this is unit-testable directly.
  */
 
-import { VulnerabilityInfo } from "@npm-manager/shared";
+import type { VulnerabilityInfo } from "@npm-manager/shared";
 
 /**
  * One `via` entry is either a plain package name — this package is only affected
@@ -35,6 +35,11 @@ export interface NpmAuditOutput {
   vulnerabilities?: Record<string, NpmAuditAdvisory>;
 }
 
+/**
+ * npm severity word -> the 0..3 rank used by `VulnerabilityInfo.severity`.
+ * Mirrors `SEVERITY_RANK` in `@npm-manager/shared`; kept as a local copy so this
+ * module stays free of any runtime import (it is unit-tested in isolation).
+ */
 export const SEVERITY_WORDS: Record<string, number> = { info: 0, low: 0, moderate: 1, high: 2, critical: 3 };
 
 /** Resolve every real advisory reachable from `name`'s `via` chain. Cycle-guarded via `seen`. */

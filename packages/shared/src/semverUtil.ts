@@ -22,6 +22,22 @@ export function sortVersionsDescending(versions: string[]): string[] {
   return [...valid, ...invalid];
 }
 
+/**
+ * Does `version` fall within `range` (e.g. an advisory's `vulnerable_versions`
+ * like `>=1.0.0 <1.2.3`)? Prereleases inside the range count as matches, and an
+ * unparseable range is treated as "no match" rather than throwing.
+ */
+export function versionInRange(version: string, range: string): boolean {
+  // An empty range means "any version" to semver; for a "which versions are
+  // vulnerable" check that is never what we want, so treat it as no match.
+  if (!range || !range.trim()) return false;
+  try {
+    return semver.satisfies(version, range, { loose: true, includePrerelease: true });
+  } catch {
+    return false;
+  }
+}
+
 /** Highest version, optionally excluding prereleases; `undefined` when nothing qualifies. */
 export function maxVersion(versions: string[], includePrerelease: boolean): string | undefined {
   const candidates = versions.filter((v) => semver.valid(v, { loose: true }) && (includePrerelease || !isPrerelease(v)));

@@ -67,7 +67,11 @@ untouched.
   only to a package several hops down your dependency tree; the manager
   resolves that chain so a direct dependency shows its *full* exposure — not
   just the empty-looking entry `npm audit` gave it directly — without you
-  having to drill into every transitive package individually.
+  having to drill into every transitive package individually. The detail
+  pane's version dropdown additionally marks each **deprecated** version and
+  each version with a **known advisory** (from the registry's bulk advisory
+  endpoint, the same data `npm audit` uses), so you can choose a clean version
+  before you install.
 - **Supply-chain guardrail** — freshly published versions younger than a
   configurable minimum age are flagged and held back from the default
   version choice and from *Update All*.
